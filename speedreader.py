@@ -87,7 +87,7 @@ class SpeedReader(Widget):
             f.write(json_data)
 
     def on_mount(self):
-        self.set_interval(60 / self.reader_speed, self.refresh)
+        self.set_interval(60 / (self.reader_speed/self.chunk), self.refresh)
 
     def render(self):
         if (
