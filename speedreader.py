@@ -1,4 +1,6 @@
 import argparse
+import sys
+
 from datetime import datetime
 from rich.align import Align
 
@@ -60,6 +62,11 @@ class SpeedReader(Widget):
             f.close()
 
     @classmethod
+    def read_stdin(cls, stdin):
+        cls.text_blob  = stdin.read().split()
+        cls.num_tokens = len(cls.text_blob) // cls.chunk
+
+    @classmethod
     def pause(cls):
         cls.pause_flag = True
 
@@ -87,7 +94,7 @@ class SpeedReader(Widget):
             f.write(json_data)
 
     def on_mount(self):
-        self.set_interval(60 / (self.reader_speed/self.chunk), self.refresh)
+        self.set_interval(60 / (self.reader_speed / self.chunk), self.refresh)
 
     def render(self):
         if (
@@ -102,8 +109,6 @@ class SpeedReader(Widget):
         else:
             self.output = self.text_blob[SpeedReader.counter - 1]
         return Align.center(self.output, vertical="middle")
-
-
 
 
 class SpeedReaderApp(App):
@@ -151,14 +156,18 @@ class SpeedReaderApp(App):
         await self.view.dock(SpeedReader(), edge="left", size=40)
         await self.view.dock(SpeedViewer(), Clock(), edge="top")
 
-
 def calc_resume_location(savefile):
     with open(savefile, "r") as f:
         savepoint = json.load(f)
         SpeedReader.counter = savepoint["counter"]
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Speed Reader")
+
+    parser.add_argument(
+        "stdin", nargs="?", type=argparse.FileType("r"), default=sys.stdin
+    )
 
     parser.add_argument(
         "-s",
@@ -179,7 +188,6 @@ def parse_args():
         "--input-file",
         type=str,
         help="input file",
-        required=True,
     )
     parser.add_argument(
         "-b",
@@ -190,13 +198,20 @@ def parse_args():
 
     return parser.parse_args()
 
+
 def main():
     args = parse_args()
-    SpeedReader.open_file(args.input_file)
 
     SpeedViewer.reader_speed = args.speed
     SpeedReader.reader_speed = args.speed
     SpeedReader.chunk = args.chunk
+
+    if not args.stdin:
+        SpeedReader.open_file(args.input_file)
+    else:
+        SpeedReader.read_stdin(args.stdin)
+        sys.stdin = open('/dev/tty')
+
 
     if args.bookmark:
         SpeedReader.pause()
