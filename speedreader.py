@@ -4,6 +4,9 @@ from rich.align import Align
 
 from textual.app import App
 from textual.widget import Widget
+import time
+
+import json
 
 
 class Clock(Widget):
@@ -37,10 +40,11 @@ class SpeedReader(Widget):
     refresh_rate = 60 / reader_speed
     counter = 0
     pause_flag = False
-    file_handle = None
-    line_buffer = ''
-    num_lines = 0
-    output = ''
+    filename = ""
+    text_blob = ""
+    num_tokens = 0
+    chunk = 1
+    output = ""
 
     @classmethod
     def increment_wpm(cls, delta):
@@ -49,10 +53,11 @@ class SpeedReader(Widget):
 
     @classmethod
     def open_file(cls, filename):
-        cls.file_handle = open(filename, "r")
-        cls.line_buffer = cls.file_handle.readlines()
-        cls.num_lines = len(cls.line_buffer)
-        cls.file_handle.close()
+        cls.filename = filename
+        with open(filename, "r") as f:
+            cls.text_blob = f.read().split()
+            cls.num_tokens = len(cls.text_blob) // cls.chunk
+            f.close()
 
     @classmethod
     def pause(cls):
@@ -62,25 +67,40 @@ class SpeedReader(Widget):
     def resume(cls):
         cls.pause_flag = False
 
+    @classmethod
+    def go_forward(cls):
+        cls.counter += 100
+        if (cls.counter + cls.chunk - 1) < cls.num_tokens:
+            cls.counter = cls.num_tokens - 1
+
+    @classmethod
+    def go_back(cls):
+        cls.counter -= 100
+        if (cls.counter) < 0:
+            cls.counter = 0
+
+    @classmethod
+    def save_reading_location(cls):
+        with open(cls.filename + "_location", "w") as f:
+            data = {"counter": cls.counter * cls.chunk}
+            json_data = json.dumps(data)
+            f.write(json_data)
+
     def on_mount(self):
-        self.set_interval(self.refresh_rate, self.refresh)
+        self.set_interval(60 / self.reader_speed, self.refresh)
 
     def render(self):
-        if self.counter < self.num_lines and not self.pause_flag:
-            self.output = "%s %s %f %d" % (
-                self.line_buffer[self.counter],
-                str(self.counter),
-                self.refresh_rate,
-                self.reader_speed,
+        if (
+            SpeedReader.counter + SpeedReader.chunk - 1
+        ) < self.num_tokens and not SpeedReader.pause_flag:
+            self.output = " ".join(
+                self.text_blob[
+                    SpeedReader.counter : SpeedReader.counter + SpeedReader.chunk
+                ]
             )
-            self.counter += 1
+            SpeedReader.counter += SpeedReader.chunk
         else:
-            self.output = "%s %s %f %d" % (
-                self.line_buffer[self.counter - 1],
-                str(self.counter),
-                self.refresh_rate,
-                self.reader_speed,
-            )
+            self.output = self.text_blob[SpeedReader.counter - 1]
         return Align.center(self.output, vertical="middle")
 
 
@@ -95,11 +115,24 @@ def parse_args():
         help="wpm of the reader, defaults to 300",
     )
     parser.add_argument(
+        "-c",
+        "--chunk",
+        type=int,
+        default=3,
+        help="number of words at a time to show",
+    )
+    parser.add_argument(
         "-f",
         "--input-file",
         type=str,
         help="input file",
         required=True,
+    )
+    parser.add_argument(
+        "-b",
+        "--bookmark",
+        type=str,
+        help="name of bookmark file",
     )
 
     return parser.parse_args()
@@ -113,6 +146,7 @@ class SpeedReaderApp(App):
         await self.bind("j", "decrease_speed", "Decrease Speed")
         await self.bind("p", "pause", "pause playing")
         await self.bind("r", "resume", "unpause playing")
+        await self.bind("s", "save_reading_location", "save location")
 
     def action_increase_speed(self) -> None:
         """increase speed reader speed"""
@@ -125,12 +159,35 @@ class SpeedReaderApp(App):
         SpeedViewer.increment_speed(-50)
 
     def action_pause(self) -> None:
-        """decrease speed reader speed"""
+        """pause the player"""
         SpeedReader.pause()
+
+    def action_resume(self) -> None:
+        """resume from pasused state"""
+        time.sleep(1)
+        SpeedReader.resume()
+
+    def action_go_forward(self) -> None:
+        """go forward _ tokens"""
+        SpeedReader.counter = 0
+
+    def action_go_back(self) -> None:
+        """go backwards _ tokens"""
+        SpeedReader.go_back()
+
+    def action_save_reading_location(self) -> None:
+        """save reading location"""
+        SpeedReader.save_reading_location()
 
     async def on_mount(self) -> None:
         await self.view.dock(SpeedReader(), edge="left", size=40)
         await self.view.dock(SpeedViewer(), Clock(), edge="top")
+
+
+def calc_resume_location(savefile):
+    with open(savefile, "r") as f:
+        savepoint = json.load(f)
+        SpeedReader.counter = savepoint["counter"]
 
 
 def main():
@@ -139,6 +196,11 @@ def main():
 
     SpeedViewer.reader_speed = args.speed
     SpeedReader.reader_speed = args.speed
+    SpeedReader.chunk = args.chunk
+
+    if args.bookmark:
+        SpeedReader.pause()
+        calc_resume_location(args.bookmark)
 
     SpeedReaderApp.run()
 
