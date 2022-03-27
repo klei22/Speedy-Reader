@@ -104,38 +104,6 @@ class SpeedReader(Widget):
         return Align.center(self.output, vertical="middle")
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Speed Reader")
-
-    parser.add_argument(
-        "-s",
-        "--speed",
-        type=int,
-        default=300,
-        help="wpm of the reader, defaults to 300",
-    )
-    parser.add_argument(
-        "-c",
-        "--chunk",
-        type=int,
-        default=3,
-        help="number of words at a time to show",
-    )
-    parser.add_argument(
-        "-f",
-        "--input-file",
-        type=str,
-        help="input file",
-        required=True,
-    )
-    parser.add_argument(
-        "-b",
-        "--bookmark",
-        type=str,
-        help="name of bookmark file",
-    )
-
-    return parser.parse_args()
 
 
 class SpeedReaderApp(App):
@@ -189,6 +157,38 @@ def calc_resume_location(savefile):
         savepoint = json.load(f)
         SpeedReader.counter = savepoint["counter"]
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Speed Reader")
+
+    parser.add_argument(
+        "-s",
+        "--speed",
+        type=int,
+        default=300,
+        help="wpm of the reader, defaults to 300",
+    )
+    parser.add_argument(
+        "-c",
+        "--chunk",
+        type=int,
+        default=3,
+        help="number of words at a time to show",
+    )
+    parser.add_argument(
+        "-f",
+        "--input-file",
+        type=str,
+        help="input file",
+        required=True,
+    )
+    parser.add_argument(
+        "-b",
+        "--bookmark",
+        type=str,
+        help="name of bookmark file",
+    )
+
+    return parser.parse_args()
 
 def main():
     args = parse_args()
