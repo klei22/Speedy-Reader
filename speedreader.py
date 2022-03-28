@@ -2,7 +2,9 @@ import argparse
 import sys
 
 from datetime import datetime
+from datetime import timedelta
 from rich.align import Align
+from rich.text import Text
 
 from textual.app import App
 from textual.widget import Widget
@@ -10,17 +12,53 @@ import time
 
 import json
 
+initial_time = datetime.now()
 
-class Clock(Widget):
+
+class Sidebar(Widget):
+
+    end_time = datetime.now()
+    filename = None
+    last_time_estimate = ""
+
     def on_mount(self):
         self.set_interval(1, self.refresh)
 
     def render(self):
-        time = datetime.now().strftime("%c")
-        return Align.center(time, vertical="middle")
+
+        tokens_remaining = (SpeedReader.num_tokens - 1) - SpeedReader.counter
+        tokens_per_second = (SpeedReader.reader_speed) / 60
+        seconds_remaining = tokens_remaining / tokens_per_second
+
+        text = "%s\n" % Clock.get_time()
+        text += "WPM: %s\n" % SpeedViewer.get_current_speed()
+        if self.filename:
+            text += "Filename: %s\n" % self.filename
+        else:
+            text += "Reading stdin\n"
+        text += "Location: %s/%s\n" % (SpeedReader.counter + 1, SpeedReader.num_tokens)
+        text += "Percentage: %3.1f %%\n" % (
+            100 * SpeedReader.counter / (SpeedReader.num_tokens - 1)
+        )
+        text += "Time Remaining: %.2f\n" % (seconds_remaining)
+        text += "Tokens Remaining: %.d\n" % (tokens_remaining)
+
+        if (not SpeedReader.pause_flag) and (tokens_remaining != 0):
+            self.last_time_estimate = datetime.now() + timedelta(seconds=seconds_remaining)
+
+        if isinstance(self.last_time_estimate, datetime):
+            text += "Complete at: %s" % (self.last_time_estimate.strftime("%b %d, %H:%M:%S"))
+
+        return Align.center(text, vertical="middle")
 
 
-class SpeedViewer(Widget):
+class Clock:
+    @classmethod
+    def get_time(cls):
+        return datetime.now().strftime("%c")
+
+
+class SpeedViewer:
 
     reader_speed = 300
 
@@ -28,12 +66,9 @@ class SpeedViewer(Widget):
     def increment_speed(cls, delta):
         cls.reader_speed += delta
 
-    def on_mount(self):
-        self.set_interval(0.2, self.refresh)
-
-    def render(self):
-        self.str_of_reader_speed = str(self.reader_speed)
-        return Align.center(self.str_of_reader_speed, vertical="middle")
+    @classmethod
+    def get_current_speed(cls):
+        return str(cls.reader_speed)
 
 
 class SpeedReader(Widget):
@@ -46,6 +81,7 @@ class SpeedReader(Widget):
     text_blob = ""
     num_tokens = 0
     chunk = 1
+    seconds_remaining = 0
     output = ""
 
     @classmethod
@@ -63,7 +99,7 @@ class SpeedReader(Widget):
 
     @classmethod
     def read_stdin(cls, stdin):
-        cls.text_blob  = stdin.read().split()
+        cls.text_blob = stdin.read().split()
         cls.num_tokens = len(cls.text_blob) // cls.chunk
 
     @classmethod
@@ -115,11 +151,13 @@ class SpeedReaderApp(App):
     async def on_load(self) -> None:
         """bind keys"""
         await self.bind("q", "quit", "Quit")
-        await self.bind("f", "increase_speed", "Increase Speed")
-        await self.bind("j", "decrease_speed", "Decrease Speed")
+        # await self.bind("f", "increase_speed", "Increase Speed")
+        # await self.bind("j", "decrease_speed", "Decrease Speed")
         await self.bind("p", "pause", "pause playing")
         await self.bind("r", "resume", "unpause playing")
         await self.bind("s", "save_reading_location", "save location")
+        await self.bind("c", "view.toggle('clock')", "save location")
+        await self.bind("f", "view.toggle('sidebar')", "save location")
 
     def action_increase_speed(self) -> None:
         """increase speed reader speed"""
@@ -153,8 +191,14 @@ class SpeedReaderApp(App):
         SpeedReader.save_reading_location()
 
     async def on_mount(self) -> None:
-        await self.view.dock(SpeedReader(), edge="left", size=40)
-        await self.view.dock(SpeedViewer(), Clock(), edge="top")
+        self.speed_reader = SpeedReader()
+        self.sidebar = Sidebar()
+
+        await self.view.dock(self.sidebar, edge="left", size=30, name="sidebar")
+
+        # dock body in remaining space
+        await self.view.dock(self.speed_reader, edge="right")
+
 
 def calc_resume_location(savefile):
     with open(savefile, "r") as f:
@@ -206,12 +250,12 @@ def main():
     SpeedReader.reader_speed = args.speed
     SpeedReader.chunk = args.chunk
 
-    if not args.stdin:
+    if args.input_file:
         SpeedReader.open_file(args.input_file)
+        Sidebar.filename = args.input_file
     else:
         SpeedReader.read_stdin(args.stdin)
-        sys.stdin = open('/dev/tty')
-
+        sys.stdin = open("/dev/tty")
 
     if args.bookmark:
         SpeedReader.pause()
