@@ -24,7 +24,7 @@ python3 speedreader.py -s 300 -c 3 -f README.md
 
 # Demo
 
-![demo](./img/high_res_demo.gif)
+![demo](./img/green_text_demo.gif)
 
 ## Basic Flags
 
