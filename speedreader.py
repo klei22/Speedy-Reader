@@ -130,6 +130,7 @@ class Sidebar(Widget):
     tokens_remaining = None
     tokens_per_second = None
     seconds_remaining = None
+    end_reached = False
 
     def on_mount(self):
         self.set_interval(0.02, self.refresh)
@@ -141,11 +142,15 @@ class Sidebar(Widget):
         self.tokens_remaining = (SpeedReader.num_tokens - 1) - SpeedReader.counter
         self.tokens_per_second = (SpeedReader.reader_speed) / 60
         self.seconds_remaining = self.tokens_remaining / self.tokens_per_second
+        self.end_reached = self.tokens_remaining < SpeedReader.chunk
 
     def append_percentage_read(self):
-        self.sidebar_message_buffer += "Percentage: %3.1f %%\n" % (
-            100 * SpeedReader.counter / (SpeedReader.num_tokens - 1)
-        )
+        if self.end_reached:
+            self.sidebar_message_buffer += "Percentage: 100 %\n"
+        else:
+            self.sidebar_message_buffer += "Percentage: %3.1f %%\n" % (
+                100 * SpeedReader.counter / (SpeedReader.num_tokens - 1)
+            )
 
     def append_wpm(self):
         self.sidebar_message_buffer += "WPM: %s\n" % SpeedViewer.get_current_speed()
@@ -168,15 +173,21 @@ class Sidebar(Widget):
 
     def append_time_remaining(self):
         """Appends estimated remaining reading time at current wpm rate"""
-        self.sidebar_message_buffer += "Time Remaining: %.2f\n" % (
-            self.seconds_remaining
-        )
+        if self.end_reached:
+            self.sidebar_message_buffer += "Time Remaining: 0\n"
+        else:
+            self.sidebar_message_buffer += "Time Remaining: %.2f\n" % (
+                self.seconds_remaining
+            )
 
     def append_tokens_remaining(self):
         """Appends number of tokens remaining to be read"""
-        self.sidebar_message_buffer += "Tokens Remaining: %.d\n" % (
-            self.tokens_remaining
-        )
+        if self.end_reached:
+            self.sidebar_message_buffer += "Tokens Remaining: 0\n"
+        else:
+            self.sidebar_message_buffer += "Tokens Remaining: %.d\n" % (
+                self.tokens_remaining
+            )
 
     def append_estimated_time_of_completion(self):
         """Appends an estimate of when reader will finish the given text, at the current rate of reading
@@ -188,7 +199,7 @@ class Sidebar(Widget):
         """
 
         if not SpeedReader.pause_flag:
-            if self.tokens_remaining != 0:
+            if not self.end_reached:
                 if self.seconds_remaining != None:
                     self.last_time_estimate = datetime.now() + timedelta(
                         seconds=self.seconds_remaining
