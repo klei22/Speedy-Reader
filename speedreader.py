@@ -94,7 +94,7 @@ class SpeedReader(Widget):
     @classmethod
     def save_reading_location(cls):
         with open(cls.filename + "_location", "w") as f:
-            data = {"counter": cls.counter * cls.chunk}
+            data = {"counter": cls.counter}
             json_data = json.dumps(data)
             f.write(json_data)
 
