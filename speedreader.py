@@ -47,24 +47,24 @@ class SpeedReader(Widget):
     chunk = 1
     output = ""
 
-    @classmethod
-    def increment_wpm(cls, delta):
-        cls.reader_speed += delta
-        cls.refresh_rate = 60 / (cls.reader_speed)
-        cls.new_speed = 1000
+    # TODO: add increment decrement wpm feature
+    # @classmethod
+    # def increment_wpm(cls, delta):
+    #     cls.reader_speed += delta
+    #     cls.refresh_rate = 60 / (cls.reader_speed)
 
     @classmethod
     def open_file(cls, filename):
         cls.filename = filename
         with open(filename, "r") as f:
             cls.text_blob = f.read().split()
-            cls.num_tokens = len(cls.text_blob) // cls.chunk
+            cls.num_tokens = len(cls.text_blob)
             f.close()
 
     @classmethod
     def read_stdin(cls, stdin):
         cls.text_blob = stdin.read().split()
-        cls.num_tokens = len(cls.text_blob) // cls.chunk
+        cls.num_tokens = len(cls.text_blob)
 
     @classmethod
     def pause(cls):
@@ -102,9 +102,8 @@ class SpeedReader(Widget):
         self.set_interval(60 / (self.reader_speed / self.chunk), self.refresh)
 
     def render(self):
-        if (
-            SpeedReader.counter + SpeedReader.chunk - 1
-        ) < self.num_tokens and not SpeedReader.pause_flag:
+        next_position = SpeedReader.counter + SpeedReader.chunk
+        if (next_position) < self.num_tokens and not SpeedReader.pause_flag:
             self.output = " ".join(
                 self.text_blob[
                     SpeedReader.counter : SpeedReader.counter + SpeedReader.chunk
@@ -112,7 +111,11 @@ class SpeedReader(Widget):
             )
             SpeedReader.counter += SpeedReader.chunk
         else:
-            self.output = self.text_blob[SpeedReader.counter - 1]
+            self.output = " ".join(
+                self.text_blob[
+                    SpeedReader.counter : SpeedReader.counter + SpeedReader.chunk
+                ]
+            )
         return Align.center(self.output, vertical="middle")
 
 
@@ -129,7 +132,7 @@ class Sidebar(Widget):
     seconds_remaining = None
 
     def on_mount(self):
-        self.set_interval(1, self.refresh)
+        self.set_interval(0.02, self.refresh)
 
     def clear_sidebar_message_buffer(self):
         self.sidebar_message_buffer = ""
@@ -324,8 +327,7 @@ def parse_args():
         "-i",
         "--increment-amount",
         type=int,
-        default=30,
-        help="the number of words moved when rewinding/fast-forwarding",
+        help="the number of words moved when rewinding/fast-forwarding, if not set, defaults to chunksize",
     )
 
     return parser.parse_args()
@@ -337,8 +339,16 @@ def main():
     SpeedViewer.reader_speed = args.speed
     SpeedReader.reader_speed = args.speed
     SpeedReader.chunk = args.chunk
-    SpeedReader.fast_forward_amount = args.increment_amount
-    SpeedReader.rewind_amount = args.increment_amount
+
+
+    if args.increment_amount is None:
+        SpeedReader.fast_forward_amount = args.chunk
+        SpeedReader.rewind_amount = args.chunk
+    else:
+        SpeedReader.fast_forward_amount = args.increment_amount
+        SpeedReader.rewind_amount = args.increment_amount
+
+    SpeedReader.pause()
 
     if args.input_file:
         SpeedReader.open_file(args.input_file)
