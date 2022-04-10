@@ -1,10 +1,10 @@
-# ⚡ Speedy-Reader  ⚡
+# ⚡ Speedy-Reader ⚡
 
-![demo](./img/speedreader_demo.gif)
+![banner](./img/speedreader_banner.png)
 
 Speedy-Reader is a Textual/Rich based speed reading cli app.
 
-Read faster within the commadn line.
+Read faster within the command line.
 
 Nice and centered within the terminal, foldable sidebar with statistics.
 
@@ -12,15 +12,19 @@ Can accept both piped input as well as text input, with features for saving and 
 
 ## Basic Usage
 
-On start press 'r' to start the auto-scroller.
+After app starts, press `r` to start the auto-scroller.
 
 ```sh
 python3 speedreader.py -s 300 -c 3 -f README.md
 ```
-- Press 'p' to pause auto scrolling 'r' to resume auto scrolling.
-- Press 'f' to toggle fullscreen (hides the sidebar and recenters text)
-- While paused, use '+'/'-' to manually scroll (still really great)
-- Press 's' to save bookmark at current location for later reading
+- Press `p` to pause auto scrolling `r` to resume auto scrolling.
+- Press `f` to toggle fullscreen (hides the sidebar and recenters text)
+- While paused, use `+`/`-` to manually scroll (still really great)
+- Press `s` to save bookmark at current location for later reading
+
+# Demo
+
+![demo](./img/high_res_demo.gif)
 
 ## Basic Flags
 
