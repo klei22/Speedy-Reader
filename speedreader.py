@@ -221,6 +221,7 @@ class Sidebar(Widget):
         # display general info
         self.append_current_time()
         self.append_filename()
+        self.append_wpm()
 
         # display reading progress stats
         self.append_percentage_read()
