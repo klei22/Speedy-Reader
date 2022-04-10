@@ -352,7 +352,6 @@ def main():
     SpeedReader.reader_speed = args.speed
     SpeedReader.chunk = args.chunk
 
-
     if args.increment_amount is None:
         SpeedReader.fast_forward_amount = args.chunk
         SpeedReader.rewind_amount = args.chunk
