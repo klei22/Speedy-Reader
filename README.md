@@ -33,7 +33,7 @@ python3 speedreader.py -s 300 -c 3 -f README.md
 - `-c <chunk-size>` number of words to show per frame ('word-chunk' size)
 - `-b <bookmark>` designate bookmark file to use to resume reading
 
-###  Websites, PDFs and piped inputs
+##  Websites, PDFs and piped inputs
 
 From website:
 ```sh
