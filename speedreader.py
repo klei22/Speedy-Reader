@@ -17,26 +17,10 @@ initial_time = datetime.now()
 def get_time():
     return datetime.now().strftime("%c")
 
-
-class SpeedViewer:
-
-    # speed in wpm
-    reader_speed = 300
-
-    # TODO: add feature to increment/decrement speed while reading
-    # @classmethod
-    # def increment_speed(cls, delta):
-    #     cls.reader_speed += delta
-
-    @classmethod
-    def get_current_speed(cls):
-        return str(cls.reader_speed)
-
-
 class SpeedReader(Widget):
 
     reader_speed = 300
-    refresh_rate = 60 / reader_speed
+    refresh_rate = 60.0 / reader_speed
     fast_forward_amount = 30
     rewind_amount = 30
     counter = 0
@@ -46,12 +30,18 @@ class SpeedReader(Widget):
     num_tokens = 0
     chunk = 1
     output = ""
+    new_refresh_rate = refresh_rate
+    interval = None
 
-    # TODO: add increment decrement wpm feature
-    # @classmethod
-    # def increment_wpm(cls, delta):
-    #     cls.reader_speed += delta
-    #     cls.refresh_rate = 60 / (cls.reader_speed)
+    @classmethod
+    def increment_wpm(cls, delta):
+        cls.reader_speed += delta
+
+        # guard against div by zero
+        if cls.reader_speed <= 0:
+            cls.reader_speed = 1
+
+        cls.new_refresh_rate = 60.0 / (cls.reader_speed / cls.chunk)
 
     @classmethod
     def open_file(cls, filename):
@@ -99,7 +89,7 @@ class SpeedReader(Widget):
             f.write(json_data)
 
     def on_mount(self):
-        self.set_interval(60 / (self.reader_speed / self.chunk), self.refresh)
+        self.interval = self.set_interval(60 / (self.reader_speed / self.chunk), self.refresh)
 
     def render(self):
         next_position = SpeedReader.counter + SpeedReader.chunk
@@ -116,6 +106,14 @@ class SpeedReader(Widget):
                     SpeedReader.counter : SpeedReader.counter + SpeedReader.chunk
                 ]
             )
+        if SpeedReader.new_refresh_rate != self.refresh_rate and self.interval != None:
+            self.interval.stop()
+            self.output += " -- self.interval.stop() called"
+            # self.refresh_rate = SpeedReader.new_refresh_rate
+            # # TODO: first confirm reset to static interval
+            # self.interval = self.set_interval(1, self.refresh)
+            # TODO: second use with dynamic setting
+            # self.interval = self.set_interval(self.refresh_rate, self.refresh)
         return Align.center(self.output, vertical="middle")
 
 
@@ -153,7 +151,7 @@ class Sidebar(Widget):
             )
 
     def append_wpm(self):
-        self.sidebar_message_buffer += "WPM: %s\n" % SpeedViewer.get_current_speed()
+        self.sidebar_message_buffer += "WPM: %s\n" % SpeedReader.reader_speed
 
     def append_current_time(self):
         self.sidebar_message_buffer = "%s\n" % get_time()
@@ -239,9 +237,8 @@ class SpeedReaderApp(App):
     async def on_load(self) -> None:
         """bind keys"""
         await self.bind("q", "quit", "Quit")
-        # TODO: add support for increasing and decreasing speed while reading
-        # await self.bind("+", "increase_speed", "Increase Speed")
-        # await self.bind("-", "decrease_speed", "Decrease Speed")
+        await self.bind("k", "increase_speed", "Increase Speed")
+        await self.bind("j", "decrease_speed", "Decrease Speed")
         await self.bind("p", "pause", "pause playing")
         await self.bind("r", "resume", "unpause playing")
         await self.bind("s", "save_reading_location", "save location")
@@ -250,16 +247,13 @@ class SpeedReaderApp(App):
         await self.bind("-", "go_back", "move backward _ words")
         await self.bind("T", "go_to_top", "go to start of the text")
 
-    # TODO: add support for increasing and decreasing speed while reading
-    # def action_increase_speed(self) -> None:
-    #     """increase speed reader speed"""
-    #     SpeedReader.increment_wpm(50)
-    #     SpeedViewer.increment_speed(50)
+    def action_increase_speed(self) -> None:
+        """increase speed reader speed"""
+        SpeedReader.increment_wpm(50)
 
-    # def action_decrease_speed(self) -> None:
-    #     """decrease speed reader speed"""
-    #     SpeedReader.increment_wpm(-50)
-    #     SpeedViewer.increment_speed(-50)
+    def action_decrease_speed(self) -> None:
+        """decrease speed reader speed"""
+        SpeedReader.increment_wpm(-50)
 
     def action_pause(self) -> None:
         """pause the player"""
@@ -348,7 +342,6 @@ def parse_args():
 def main():
     args = parse_args()
 
-    SpeedViewer.reader_speed = args.speed
     SpeedReader.reader_speed = args.speed
     SpeedReader.chunk = args.chunk
 
