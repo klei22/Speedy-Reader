@@ -4,6 +4,7 @@ import sys
 from datetime import datetime
 from datetime import timedelta
 from rich.align import Align
+from rich.text import Text
 
 from textual.app import App
 from textual.widget import Widget
@@ -116,6 +117,15 @@ class SpeedReader(Widget):
                     SpeedReader.counter : SpeedReader.counter + SpeedReader.chunk
                 ]
             )
+        text = Text()
+        if [True]:
+            for word in self.output.split():
+                text.stylize
+                text.append(word[0:len(word)//2], style="bold #00ff00")
+                text.append(word[len(word)//2:len(word)], style="#00BB00")
+                text.append(" ")
+            return Align.center(text, vertical="middle")
+
         return Align.center(self.output, vertical="middle")
 
 
